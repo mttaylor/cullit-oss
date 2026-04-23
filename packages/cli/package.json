@@ -1,0 +1,44 @@
+{
+  "name": "cullit",
+  "version": "2.10.0",
+  "type": "module",
+  "description": "Public Cullit CLI for local, template-based release notes. Licensed AI and integrations are delivered separately.",
+  "license": "MIT",
+  "author": "Cullit <matt@cullit.io>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mttaylor/cullit",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "release-notes",
+    "changelog",
+    "ai",
+    "cli",
+    "devops",
+    "automation"
+  ],
+  "homepage": "https://cullit.io",
+  "bugs": {
+    "url": "https://github.com/mttaylor/cullit/issues"
+  },
+  "bin": {
+    "cullit": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean",
+    "dev": "tsup src/index.ts --format esm --watch"
+  },
+  "dependencies": {
+    "@cullit/core": "workspace:*",
+    "@cullit/config": "workspace:*"
+  }
+}

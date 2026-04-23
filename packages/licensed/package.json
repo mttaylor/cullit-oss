@@ -1,0 +1,43 @@
+{
+  "name": "@cullit/licensed",
+  "version": "2.10.0",
+  "type": "module",
+  "description": "Private registry distribution for Cullit paid tiers (Paid and Enterprise).",
+  "license": "MIT",
+  "author": "Cullit <matt@cullit.io>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mttaylor/cullit",
+    "directory": "packages/licensed"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "bin": {
+    "cullit": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "homepage": "https://cullit.io",
+  "bugs": {
+    "url": "https://github.com/mttaylor/cullit/issues"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --clean"
+  },
+  "dependencies": {
+    "@cullit/pro": "workspace:*",
+    "cullit": "workspace:*"
+  }
+}

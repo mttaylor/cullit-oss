@@ -1,0 +1,146 @@
+# =====================================================
+#  Cullit — Publish to npm on version tag
+# =====================================================
+#
+# Triggered when you push a version tag:
+#   git tag v0.2.0
+#   git push origin v0.2.0
+#
+# Setup:
+#   1. Create an npm access token (Automation type)
+#   2. Add it as NPM_TOKEN in GitHub repo secrets
+#   3. If using @cullit/* scoped packages, create the org on npm first
+#
+# This publishes:
+#   - cullit        (CLI — `npx cullit generate`)
+#   - @cullit/core    (library)
+#   - @cullit/config  (library)
+
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write  # For GitHub Release
+  id-token: write  # For npm provenance attestation
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Extract version from tag (v0.2.0 → 0.2.0) and validate semver format
+      - name: Validate and set version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?(\+[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Tag '${GITHUB_REF_NAME}' is not valid semver (expected vX.Y.Z)"
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Bump all package versions to match the tag
+      - name: Update package versions
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          for pkg in . packages/config packages/core packages/cli packages/pro packages/licensed; do
+            jq --arg v "$VERSION" '.version = $v' "$pkg/package.json" > tmp.json && mv tmp.json "$pkg/package.json"
+          done
+          sed -i "s/VERSION = '.*'/VERSION = '$VERSION'/" packages/core/src/constants.ts
+
+      - name: Build
+        run: pnpm build
+
+      - name: Test
+        run: pnpm test
+
+      # Publish packages in dependency order (skip if version already exists)
+      - name: Publish @cullit/config
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          if npm view @cullit/config@$VERSION version 2>/dev/null; then
+            echo "@cullit/config@$VERSION already published, skipping"
+          else
+            pnpm --filter @cullit/config publish --access public --no-git-checks --provenance
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cullit/core
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          if npm view @cullit/core@$VERSION version 2>/dev/null; then
+            echo "@cullit/core@$VERSION already published, skipping"
+          else
+            pnpm --filter @cullit/core publish --access public --no-git-checks --provenance
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @cullit/pro
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          if npm view @cullit/pro@$VERSION version 2>/dev/null; then
+            echo "@cullit/pro@$VERSION already published, skipping"
+          else
+            pnpm --filter @cullit/pro publish --access public --no-git-checks --provenance
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish cullit (CLI)
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          if npm view cullit@$VERSION version 2>/dev/null; then
+            echo "cullit@$VERSION already published, skipping"
+          else
+            pnpm --filter cullit publish --access public --no-git-checks --provenance
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Self-dogfood: generate release notes with cullit
+      - name: Generate release notes
+        id: notes
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+          if [ -z "$PREV_TAG" ]; then
+            PREV_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          node packages/cli/dist/index.js generate \
+            --from "$PREV_TAG" \
+            --to "$GITHUB_REF_NAME" \
+            --provider none \
+            --format markdown \
+            --dry-run > release-notes.md 2>&1 || true
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: release-notes.md
+          generate_release_notes: true  # fallback if cullit output is empty
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

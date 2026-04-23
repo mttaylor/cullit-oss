@@ -1,0 +1,19 @@
+node_modules/
+dist/
+!dist/action.js
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+test-results/
+.turbo/
+.cache/
+*.tgz
+*.code-workspace
+cullit_setup_guide.md
+RELEASE_NOTES.md
+changelog-store.json
+auth-store.json
+history-store.json
+# architecture-docs/ is tracked in the repo
