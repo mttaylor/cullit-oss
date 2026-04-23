@@ -1,0 +1,29 @@
+name: Mark stale issues and PRs
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          days-before-pr-stale: 30
+          days-before-pr-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: pinned,security,bug
+          exempt-pr-labels: pinned,security
+          stale-issue-message: 'No activity for 60 days — marking stale. Comment to keep it open.'
+          stale-pr-message: 'No activity for 30 days — marking stale. Comment to keep it open.'
+          close-issue-message: 'Closing as stale. Reopen if still relevant.'
+          close-pr-message: 'Closing as stale. Reopen if still relevant.'
